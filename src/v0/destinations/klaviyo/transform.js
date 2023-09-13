@@ -31,6 +31,7 @@ const {
   addExternalIdToTraits,
   adduserIdFromExternalId,
   getSuccessRespEvents,
+  getProcessedEventsResp,
   checkInvalidRtTfEvents,
   handleRtTfSingleEventError,
   flattenJson,
@@ -331,7 +332,9 @@ const processRouterDest = async (inputs, reqMetadata) => {
   );
   let batchedSubscribeResponseList = [];
   if (subscribeRespList.length > 0) {
-    batchedSubscribeResponseList = batchSubscribeEvents(subscribeRespList);
+    const { batchedResponseList, identifyResponseList } = batchSubscribeEvents(subscribeRespList);
+    const identifyEventsList = identifyResponseList.map((resp) => getProcessedEventsResp(resp.message, [resp.metadata], resp.destination))
+    batchedSubscribeResponseList = [...batchedResponseList, ...identifyEventsList]
   }
   const nonSubscribeSuccessList = nonSubscribeRespList.map((resp) =>
     getSuccessRespEvents(resp.message, [resp.metadata], resp.destination),
