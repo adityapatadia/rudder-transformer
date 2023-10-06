@@ -23,6 +23,7 @@ import { CatchErr, FixMe } from '../util/types';
 export default class UserTransformService {
   public static async transformRoutine(
     events: ProcessorTransformationRequest[],
+    features: FeatureFlags = {},
   ): Promise<UserTransformationServiceResponse> {
     let retryStatus = 200;
     const groupedEvents: NonNullable<unknown> = groupBy(
@@ -47,6 +48,8 @@ export default class UserTransformService {
         const transformationVersionId =
           eventsToProcess[0]?.destination?.Transformations[0]?.VersionID;
         const messageIds = eventsToProcess.map((ev) => ev.metadata?.messageId);
+        const messageIdsSet = new Set<string>(messageIds);
+        const messageIdsInOutputSet = new Set<string>();
 
         const commonMetadata = {
           sourceId: eventsToProcess[0]?.metadata?.sourceId,
