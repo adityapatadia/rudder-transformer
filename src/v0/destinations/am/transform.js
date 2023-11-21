@@ -195,9 +195,9 @@ const handleTraits = (messageTrait, destination) => {
 
 const getScreenevTypeAndUpdatedProperties = (message, CATEGORY_KEY) => {
   const name = message.name || message.event || get(message, CATEGORY_KEY);
-  const updatedName = name ? `${name} ` : '';
+
   return {
-    eventType: `Viewed ${updatedName}Screen`,
+    eventType: `Viewed ${message.name || message.event || get(message, CATEGORY_KEY) || ''} Screen`,
     updatedProperties: {
       ...message.properties,
       name,
@@ -578,8 +578,6 @@ const getGroupInfo = (destination, groupInfo, groupTraits) => {
   }
   return groupInfo;
 };
-const getUpdatedPageNameWithoutUserDefinedPageEventName = (name, message, CATEGORY_KEY) =>
-  name || get(message, CATEGORY_KEY) ? `${name || get(message, CATEGORY_KEY)} ` : undefined;
 
 // Generic process function which invokes specific handler functions depending on message type
 // and event type where applicable
@@ -593,7 +591,8 @@ const processSingleMessage = (message, destination) => {
   const { name, event, properties } = message;
   const messageType = message.type.toLowerCase();
   const CATEGORY_KEY = 'properties.category';
-  const { useUserDefinedPageEventName, userProvidedPageEventString } = destination.Config;
+  const { useUserDefinedPageEventName, userProvidedPageEventString,
+    useUserDefinedScreenEventName, userProvidedScreenEventString } = destination.Config;
   switch (messageType) {
     case EventType.IDENTIFY:
       payloadObjectName = 'events'; // identify same as events
@@ -603,24 +602,19 @@ const processSingleMessage = (message, destination) => {
     case EventType.PAGE:
       if (useUserDefinedPageEventName) {
         const getMessagePath = userProvidedPageEventString
-          .substring(
-            userProvidedPageEventString.indexOf('{') + 2,
-            userProvidedPageEventString.indexOf('}'),
-          )
-          .trim();
+            .substring(
+                userProvidedPageEventString.indexOf('{') + 2,
+                userProvidedPageEventString.indexOf('}'),
+            )
+            .trim();
         evType =
-          userProvidedPageEventString.trim() === ''
-            ? name
-            : userProvidedPageEventString
-                .trim()
-                .replaceAll(/{{([^{}]+)}}/g, get(message, getMessagePath));
+            userProvidedPageEventString.trim() === ''
+                ? name
+                : userProvidedPageEventString
+                    .trim()
+                    .replaceAll(/{{([^{}]+)}}/g, get(message, getMessagePath));
       } else {
-        const updatedName = getUpdatedPageNameWithoutUserDefinedPageEventName(
-          name,
-          message,
-          CATEGORY_KEY,
-        );
-        evType = `Viewed ${updatedName || ''}Page`;
+        evType = `Viewed ${name || get(message, CATEGORY_KEY) || ''} Page`;
       }
       message.properties = {
         ...properties,
@@ -631,10 +625,25 @@ const processSingleMessage = (message, destination) => {
     case EventType.SCREEN:
       {
         const { eventType, updatedProperties } = getScreenevTypeAndUpdatedProperties(
-          message,
-          CATEGORY_KEY,
+            message,
+            CATEGORY_KEY,
         );
-        evType = eventType;
+        let customScreenEv = '';
+        if (useUserDefinedScreenEventName) {
+          const getMessagePath = userProvidedScreenEventString
+              .substring(
+                  userProvidedScreenEventString.indexOf('{') + 2,
+                  userProvidedScreenEventString.indexOf('}'),
+              )
+              .trim();
+          customScreenEv =
+              userProvidedScreenEventString.trim() === ''
+                  ? name
+                  : userProvidedScreenEventString
+                      .trim()
+                      .replaceAll(/{{([^{}]+)}}/g, get(message, getMessagePath));
+        }
+        evType =useUserDefinedScreenEventName ? customScreenEv : eventType;
         message.properties = updatedProperties;
         category = ConfigCategory.SCREEN;
       }
