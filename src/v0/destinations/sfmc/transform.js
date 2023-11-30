@@ -3,6 +3,8 @@ const {
   NetworkError,
   ConfigurationError,
   InstrumentationError,
+  isDefinedAndNotNull,
+  isEmpty,
 } = require('@rudderstack/integrations-lib');
 const { EventType } = require('../../../constants');
 const { CONFIG_CATEGORIES, MAPPING_CONFIG, ENDPOINTS } = require('./config');
@@ -16,7 +18,6 @@ const {
   flattenJson,
   toTitleCase,
   getHashFromArray,
-  isEmpty,
   simpleProcessRouterDest,
 } = require('../../util');
 const {
@@ -222,10 +223,22 @@ const responseBuilderSimple = async (message, category, destination) => {
   }
 
   if (category.type === 'identify' && createOrUpdateContacts) {
-    throw new ConfigurationError('Creating or updating contacts is disabled');
+    throw new ConfigurationError(
+      'Creating or updating contacts is disabled. To enable this feature set "Do Not Create or Update Contacts" to false',
+    );
   }
 
-  if (category.type === 'track' && hashMapExternalKey[message.event.toLowerCase()]) {
+  if (category.type === 'track') {
+    if (isEmpty(message.event)) {
+      throw new ConfigurationError('Event name is required for track events');
+    }
+    if (typeof message.event !== 'string') {
+      throw new ConfigurationError('Event name must be a string');
+    }
+    if (!isDefinedAndNotNull(hashMapExternalKey[message.event.toLowerCase()])) {
+      throw new ConfigurationError('Event not mapped for this track call');
+    }
+
     return responseBuilderForInsertData(
       message,
       hashMapExternalKey[message.event.toLowerCase()],
@@ -238,7 +251,7 @@ const responseBuilderSimple = async (message, category, destination) => {
     );
   }
 
-  throw new ConfigurationError('Event not mapped for this track call');
+  throw new ConfigurationError(`Event type '${category.type}' not supported`);
 };
 
 const processEvent = async (message, destination) => {
@@ -275,4 +288,4 @@ const processRouterDest = async (inputs, reqMetadata) => {
   return respList;
 };
 
-module.exports = { process, processRouterDest };
+module.exports = { process, processRouterDest, responseBuilderSimple };
